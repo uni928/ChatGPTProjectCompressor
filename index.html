@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ProjectFiles.txt 生成ツール（ドラッグ＆ドロップ対応）</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background-color: #1e1e1e;
+      color: #f5f5f5;
+      margin: 0;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #e0e0e0;
+    }
+    .container {
+      background: #2a2a2a;
+      border-radius: 10px;
+      padding: 25px;
+      width: 90%;
+      max-width: 700px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    .dropzone {
+      border: 2px dashed #666;
+      border-radius: 10px;
+      padding: 40px;
+      text-align: center;
+      transition: background-color 0.2s, border-color 0.2s;
+      cursor: pointer;
+    }
+    .dropzone.dragover {
+      background-color: #333;
+      border-color: #4da3ff;
+    }
+    .dropzone strong {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      color: #c0c0c0;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+    }
+    select, input[type="checkbox"] {
+      font-size: 0.9rem;
+      background: #2a2a2a;
+      color: #f5f5f5;
+      border: 1px solid #555;
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+    label {
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    button {
+      font-size: 0.9rem;
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background-color: #3a3a3a;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: #4a4a4a;
+    }
+    button.primary {
+      background-color: #0078ff;
+      border-color: #0070e0;
+    }
+    button.primary:hover {
+      background-color: #2196f3;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .file-list {
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #ddd;
+    }
+    .footer {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-top: 20px;
+      text-align: center;
+    }
+    code {
+      background: #333;
+      color: #9cf;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>ProjectFiles.txt 生成ツール（複数ファイル → 1つのテキストに結合）</h1>
+  <div class="container">
+    <div id="dropzone" class="dropzone">
+      <strong>ここにファイルをドラッグ＆ドロップ</strong>
+      または<br>
+      <label for="fileInput" style="color:#4da3ff;cursor:pointer;">ファイルを選択</label>
+      <input type="file" id="fileInput" multiple>
+    </div>
+
+    <div class="controls">
+      <label>エンコーディング：
+        <select id="encoding">
+          <option value="auto">自動（推奨: UTF-8）</option>
+          <option value="utf-8">UTF-8</option>
+          <option value="shift_jis">Shift_JIS</option>
+          <option value="euc-jp">EUC-JP</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="bom" checked> UTF-8 BOMを付与</label>
+      <button id="clear">リストをクリア</button>
+      <button id="download" class="primary" disabled>ProjectFiles.txt をダウンロード</button>
+    </div>
+
+    <div class="file-list" id="fileList">未選択</div>
+
+    <div class="footer">
+      作成フォーマット：<br>
+      <code>ファイル名：</code> に続けて改行し、 <code>[ファイル内容]</code> をそのまま出力。各ファイルは空行で区切られます。
+    </div>
+  </div>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const downloadBtn = document.getElementById('download');
+    const clearBtn = document.getElementById('clear');
+    const encodingSel = document.getElementById('encoding');
+    const bomChk = document.getElementById('bom');
+
+    let files = [];
+
+    function renderList() {
+      if (!files.length) {
+        fileList.textContent = '未選択';
+        downloadBtn.disabled = true;
+        return;
+      }
+      downloadBtn.disabled = false;
+      fileList.innerHTML = files.map((f, i) => `${i+1}. ${f.name} (${(f.size/1024).toFixed(1)} KB)`).join('<br>');
+    }
+
+    function addFiles(newFiles) {
+      files.push(...Array.from(newFiles));
+      renderList();
+    }
+
+    dropzone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      addFiles(e.dataTransfer.files);
+    });
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => addFiles(e.target.files));
+    clearBtn.addEventListener('click', () => { files = []; renderList(); });
+
+    downloadBtn.addEventListener('click', async () => {
+      if (!files.length) return;
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = '生成中...';
+
+      try {
+        const encoding = encodingSel.value;
+        const parts = [];
+        for (const file of files) {
+          const text = await file.text();
+          const line = '*'.repeat(file.name.length + 8);
+          const header = `${line}\n*  ${file.name}  *\n${line}\n`;
+          parts.push(`${header}\n${text}\n`);
+        }
+        const bom = bomChk.checked ? '\uFEFF' : '';
+        const blob = new Blob([bom + parts.join('\n')], {type: 'text/plain;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ProjectFiles.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('エラー: ' + err.message);
+      }
+      downloadBtn.textContent = 'ProjectFiles.txt をダウンロード';
+      downloadBtn.disabled = false;
+    });
+
+    renderList();
+  </script>
+</body>
+</html>
